@@ -12,7 +12,9 @@ type QuestionService interface {
 	ListQuestions(filter map[string]string) ([]questionEntity.ListQuestionExample, error)
 	ListQuizQuestions(filter map[string]string) ([]questionEntity.ListQuestionQuiz, error)
 	DeleteQuestion(id int32) error
-	ListAdmin(filter map[string]string) ([]questionEntity.ListQuestionAdmin, error)
+	DeleteAnswer(id int32) error
+	ListAdmin(filter map[string]string, page, limit int) ([]questionEntity.ListQuestionAdmin, error)
+	EditQuestion(id int32, question questionEntity.EditQuestion) error 
 }
 
 type questionService struct {
@@ -54,11 +56,18 @@ func (s *questionService) ListQuizQuestions(filter map[string]string) ([]questio
 
 // admin
 
-func (s *questionService) ListAdmin(filter map[string]string) ([]questionEntity.ListQuestionAdmin, error) {
-	// Panggil repository
-	questions, err := s.repo.ListAdmin(filter)
+func (s *questionService) ListAdmin(filter map[string]string, page, limit int) ([]questionEntity.ListQuestionAdmin, error) {
+	questions, err := s.repo.ListAdmin(filter, page, limit)
 	if err != nil {
 		return nil, err
 	}
 	return questions, nil
+}
+
+func (s *questionService) EditQuestion(id int32, question questionEntity.EditQuestion) error {
+	return s.repo.Edit(id, question)
+}
+
+func (s *questionService) DeleteAnswer(id int32) error {
+	return s.repo.DeleteAnswer(id)
 }

@@ -14,9 +14,28 @@ type QuestionRepository interface {
 	List(filter map[string]string) ([]questionEntity.ListQuestionExample, error)
 	Delete(id int32) error
 	Exists(setID int32, number int) (bool, error)
+	Edit(id int32, question questionEntity.EditQuestion) error
 	AddQuizAnswer(answer questionEntity.SetAnswer) error
 	ListQuizQuestions(filter map[string]string) ([]questionEntity.ListQuestionQuiz, error)
-	ListAdmin(filter map[string]string) ([]questionEntity.ListQuestionAdmin, error)
+	ListAdmin(filter map[string]string, page, limit int) ([]questionEntity.ListQuestionAdmin, error)
+	DeleteAnswer(id int32) error
+
+}
+
+func (r *questionRepository) DeleteAnswer(id int32) error {
+	query := `DELETE FROM answers WHERE id = $1`
+	res, err := r.db.Exec(query, id)
+	if err != nil {
+		log.Error("[Repo][DeleteAnswer] Error deleting answer:", err)
+		return app.NewAppError(500, "failed to delete answer")
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return app.NewAppError(404, "answer not found")
+	}
+
+	return nil
 }
 
 type questionRepository struct {
@@ -42,8 +61,8 @@ func NewQuestionRepository(db *sql.DB) QuestionRepository {
 }
 
 func (r *questionRepository) Add(question questionEntity.SetQuestion) error {
-	query := `INSERT INTO questions (number, type, content, is_quiz, set_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	err := r.db.QueryRow(query, question.Number, question.Type, question.Content, question.IsQuiz, question.SetID).Scan(&question.ID)
+	query := `INSERT INTO questions (number, type, content, is_quiz, set_id) VALUES ($1, $2, $3, $4, $5)`
+	_, err := r.db.Exec(query, question.Number, question.Type, question.Content, question.IsQuiz, question.SetID)
 	if err != nil {
 		log.Error("[Repo][AddQuestion] Error inserting question:", err)
 		return app.NewAppError(500, err.Error())
@@ -171,7 +190,6 @@ func (r *questionRepository) ListQuizQuestions(filter map[string]string) ([]ques
 			return nil, app.NewAppError(500, "failed to scan quiz questions")
 		}
 
-		// Jika pertanyaan belum ada di map, buat dan tambahkan
 		if _, exists := questionsMap[qID]; !exists {
 			questionsMap[qID] = &questionEntity.ListQuestionQuiz{
 				ID:      qID,
@@ -203,4 +221,19 @@ func (r *questionRepository) ListQuizQuestions(filter map[string]string) ([]ques
 	}
 
 	return finalQuestions, nil
+}
+
+func (r *questionRepository) Edit(id int32, question questionEntity.EditQuestion) error {
+	query := `
+		UPDATE questions 
+		SET number = $1, type = $2, content = $3, is_quiz = $4, set_id = $5 
+		WHERE id = $6`
+	
+	_, err := r.db.Exec(query, question.Number, question.Type, question.Content, question.IsQuiz, question.SetID, id)
+	if err != nil {
+		log.Error("[Repo][EditQuestion] Error updating question:", err)
+		return app.NewAppError(500, err.Error())
+	}
+
+	return nil
 }

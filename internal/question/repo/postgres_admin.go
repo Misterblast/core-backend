@@ -8,7 +8,7 @@ import (
 	"github.com/ghulammuzz/misterblast/pkg/log"
 )
 
-func (r *questionRepository) ListAdmin(filter map[string]string) ([]questionEntity.ListQuestionAdmin, error) {
+func (r *questionRepository) ListAdmin(filter map[string]string, page, limit int) ([]questionEntity.ListQuestionAdmin, error) {
 	query := `
 		SELECT q.id, q.number, q.type, q.content, q.is_quiz, q.set_id,
 			   s.name AS set_name, l.name AS lesson_name, c.name AS class_name
@@ -22,7 +22,6 @@ func (r *questionRepository) ListAdmin(filter map[string]string) ([]questionEnti
 	args := []interface{}{}
 	argCounter := 1
 
-	// Apply filters dynamically
 	if isQuiz, exists := filter["is_quiz"]; exists {
 		query += fmt.Sprintf(" AND q.is_quiz = $%d", argCounter)
 		args = append(args, isQuiz)
@@ -44,8 +43,18 @@ func (r *questionRepository) ListAdmin(filter map[string]string) ([]questionEnti
 		argCounter++
 	}
 
-	// Order by number
 	query += " ORDER BY q.number"
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCounter)
+		args = append(args, limit)
+		argCounter++
+	}
+	if page > 0 && limit > 0 {
+		offset := (page - 1) * limit
+		query += fmt.Sprintf(" OFFSET $%d", argCounter)
+		args = append(args, offset)
+	}
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {

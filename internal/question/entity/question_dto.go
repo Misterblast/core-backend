@@ -1,7 +1,6 @@
 package entity
 
 type SetQuestion struct {
-	ID      int32  `json:"id"`
 	Number  int    `json:"number" validate:"required,min=1"`
 	Type    string `json:"type" validate:"required,oneof=C1 C2 C3 C4 C5 C6"`
 	Content string `json:"content" validate:"required"`

@@ -16,6 +16,9 @@ test-lesson:
 test-set:
 	$(GO_CMD) test ./internal/set/... -v
 
+test-question:
+	$(GO_CMD) test ./internal/question/... -v
+
 fmt:
 	$(GO_CMD) fmt ./...
 
