@@ -1,0 +1,162 @@
+package handler
+
+import (
+	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/ghulammuzz/misterblast/internal/question/entity"
+	"github.com/ghulammuzz/misterblast/internal/question/svc"
+	"github.com/ghulammuzz/misterblast/pkg/app"
+	"github.com/ghulammuzz/misterblast/pkg/response"
+)
+
+type QuestionHandler struct {
+	questionService svc.QuestionService
+	val             *validator.Validate
+}
+
+func NewQuestionHandler(questionService svc.QuestionService, val *validator.Validate) *QuestionHandler {
+	return &QuestionHandler{questionService, val}
+}
+
+func (h *QuestionHandler) Router(r fiber.Router) {
+	r.Post("/question", h.AddQuestionHandler)
+	r.Post("/quiz-answer", h.AddQuizAnswerHandler)
+	r.Get("/question", h.ListQuestionsHandler)
+	r.Get("/quiz", h.ListQuizHandler)
+	r.Get("/admin-question", h.ListQuestionAdminHandler)
+	r.Delete("/question/:id", h.DeleteQuestionHandler)
+}
+
+func (h *QuestionHandler) AddQuestionHandler(c *fiber.Ctx) error {
+	var question entity.SetQuestion
+
+	if err := c.BodyParser(&question); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid request body", nil)
+	}
+
+	if err := h.val.Struct(question); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+	}
+	if err := h.questionService.AddQuestion(question); err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "question added successfully", nil)
+}
+
+func (h *QuestionHandler) ListQuestionsHandler(c *fiber.Ctx) error {
+	filter := map[string]string{}
+	if setID := c.Query("set_id"); setID != "" {
+		filter["set_id"] = setID
+	}
+
+	questions, err := h.questionService.ListQuestions(filter)
+	if err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "questions retrieved successfully", questions)
+}
+
+func (h *QuestionHandler) DeleteQuestionHandler(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil || id <= 0 {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid question ID", nil)
+	}
+
+	if err := h.questionService.DeleteQuestion(int32(id)); err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "question deleted successfully", nil)
+}
+
+// Quiz Answer
+
+func (h *QuestionHandler) AddQuizAnswerHandler(c *fiber.Ctx) error {
+	var answer entity.SetAnswer
+
+	if err := c.BodyParser(&answer); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid request body", nil)
+	}
+
+	if err := h.val.Struct(answer); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+	}
+	if err := h.questionService.AddQuizAnswer(answer); err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "answer added successfully", nil)
+}
+
+// Quiz
+
+func (h *QuestionHandler) ListQuizHandler(c *fiber.Ctx) error {
+	filter := map[string]string{}
+	if c.Query("set_id") != "" {
+		filter["set_id"] = c.Query("set_id")
+	}
+	if c.Query("type") != "" {
+		filter["type"] = c.Query("type")
+	}
+	if c.Query("number") != "" {
+		filter["number"] = c.Query("number")
+	}
+
+	questions, err := h.questionService.ListQuizQuestions(filter)
+	if err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "questions retrieved successfully", questions)
+}
+
+// admin
+func (h *QuestionHandler) ListQuestionAdminHandler(c *fiber.Ctx) error {
+	filter := map[string]string{}
+	if c.Query("is_quiz") != "" {
+		filter["is_quiz"] = c.Query("is_quiz")
+	}
+	if c.Query("lesson") != "" {
+		filter["lesson"] = c.Query("lesson")
+	}
+	if c.Query("class") != "" {
+		filter["class"] = c.Query("class")
+	}
+	if c.Query("set") != "" {
+		filter["set"] = c.Query("set")
+	}
+
+	questions, err := h.questionService.ListAdmin(filter)
+	if err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "questions admin retrieved successfully", questions)
+}
