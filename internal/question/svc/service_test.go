@@ -34,6 +34,11 @@ func (m *MockQuestionRepo) List(filter map[string]string) ([]questionEntity.List
 	return args.Get(0).([]questionEntity.ListQuestionExample), args.Error(1)
 }
 
+func (m *MockQuestionRepo) Detail(id int32) (questionEntity.DetailQuestionExample, error) {
+	args := m.Called()
+	return args.Get(0).(questionEntity.DetailQuestionExample), args.Error(1)
+}
+
 func (m *MockQuestionRepo) Delete(id int32) error {
 	args := m.Called(id)
 	return args.Error(0)
@@ -59,6 +64,11 @@ func (m *MockQuestionRepo) Edit(id int32, question questionEntity.EditQuestion) 
 	return args.Error(0)
 }
 
+func (m *MockQuestionRepo) EditAnswer(id int32, answer questionEntity.EditAnswer) error {
+	args := m.Called(id, answer)
+	return args.Error(0)
+}
+
 func TestListAdminService(t *testing.T) {
 	mockRepo := new(MockQuestionRepo)
 	service := svc.NewQuestionService(mockRepo)
@@ -73,6 +83,21 @@ func TestListAdminService(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, questions, 1)
 	assert.Equal(t, "Question 1", questions[0].Content)
+}
+
+func TestDetailQuestionService(t *testing.T) {
+	mockRepo := new(MockQuestionRepo)
+	service := svc.NewQuestionService(mockRepo)
+
+	mockData := questionEntity.DetailQuestionExample{
+		ID: 1, Number: 1, Type: "C5", Content: "Question 1aaa", SetID: 9,
+	}
+
+	mockRepo.On("Detail", mock.Anything).Return(mockData, nil)
+
+	questions, err := service.DetailQuestion(1)
+	assert.NoError(t, err)
+	assert.Equal(t, "Question 1aaa", questions.Content)
 }
 
 func TestAddQuestionService(t *testing.T) {
@@ -119,6 +144,26 @@ func TestEditQuestionService(t *testing.T) {
 
 	assert.NoError(t, err)
 	mockRepo.AssertCalled(t, "Edit", int32(1), question)
+}
+
+func TestEditAnswerService(t *testing.T) {
+	mockRepo := new(MockQuestionRepo)
+	service := svc.NewQuestionService(mockRepo)
+
+	answer := questionEntity.EditAnswer{
+		QuestionID: 8,
+		Code:       "a",
+		Content:    "Updated Question",
+		ImgURL:     func(s string) *string { return &s }("http://random"),
+		IsAnswer:   true,
+	}
+
+	mockRepo.On("EditAnswer", int32(1), answer).Return(nil)
+
+	err := service.EditQuizAnswer(1, answer)
+
+	assert.NoError(t, err)
+	mockRepo.AssertCalled(t, "EditAnswer", int32(1), answer)
 }
 
 func TestDeleteAnswerService(t *testing.T) {

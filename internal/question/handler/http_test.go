@@ -60,6 +60,16 @@ func (m *MockQuestionService) ListAdmin(filter map[string]string, page, limit in
 	return args.Get(0).([]questionEntity.ListQuestionAdmin), args.Error(1)
 }
 
+func (m *MockQuestionService) DetailQuestion(id int32) (questionEntity.DetailQuestionExample, error) {
+	args := m.Called(id)
+	return args.Get(0).(questionEntity.DetailQuestionExample), args.Error(1)
+}
+
+func (m *MockQuestionService) EditQuizAnswer(id int32, answer questionEntity.EditAnswer) error {
+	args := m.Called(id, answer)
+	return args.Error(0)
+}
+
 func TestAddQuestionHandler(t *testing.T) {
 	app := fiber.New()
 	mockService := new(MockQuestionService)
@@ -116,6 +126,22 @@ func TestListQuestionsHandler(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
+func TestDetailQuestionsHandler(t *testing.T) {
+	app := fiber.New()
+	mockService := new(MockQuestionService)
+	validate := validator.New()
+	handler := handler.NewQuestionHandler(mockService, validate)
+	app.Get("/question/:id", handler.DetailQuestionsHandler)
+
+	mockService.On("DetailQuestion", mock.Anything).Return(questionEntity.DetailQuestionExample{}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/question/9", nil)
+	resp, _ := app.Test(req)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	mockService.AssertExpectations(t)
+}
+
 func TestDeleteQuestionHandler(t *testing.T) {
 	app := fiber.New()
 	mockService := new(MockQuestionService)
@@ -144,6 +170,30 @@ func TestDeleteAnswerHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/answer/11", nil)
 	resp, _ := app.Test(req)
 
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	mockService.AssertExpectations(t)
+}
+
+func TestEditAnswerHandler(t *testing.T) {
+	app := fiber.New()
+	mockService := new(MockQuestionService)
+	validate := validator.New()
+	handler := handler.NewQuestionHandler(mockService, validate)
+	app.Put("/answer/:id", handler.EditAnswerHandler)
+
+	editAnswer := questionEntity.EditAnswer{QuestionID: 8,
+		Code:     "a",
+		Content:  "Updated Question",
+		ImgURL:   func(s string) *string { return &s }("http://random"),
+		IsAnswer: true}
+	editJSON, _ := json.Marshal(editAnswer)
+
+	mockService.On("EditQuizAnswer", int32(1), editAnswer).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/answer/1", bytes.NewReader(editJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, _ := app.Test(req)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	mockService.AssertExpectations(t)
 }

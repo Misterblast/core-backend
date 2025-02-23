@@ -20,13 +20,23 @@ func NewQuestionHandler(questionService svc.QuestionService, val *validator.Vali
 }
 
 func (h *QuestionHandler) Router(r fiber.Router) {
+	// question
 	r.Post("/question", h.AddQuestionHandler)
 	r.Put("/question/:id", h.EditQuestionHandler)
-	r.Post("/quiz-answer", h.AddQuizAnswerHandler)
+	r.Get("/question/:id", h.DetailQuestionsHandler)
 	r.Get("/question", h.ListQuestionsHandler)
-	r.Get("/quiz", h.ListQuizHandler)
-	r.Get("/admin-question", h.ListQuestionAdminHandler)
 	r.Delete("/question/:id", h.DeleteQuestionHandler)
+
+	// answer
+	r.Delete("/answer/:id", h.DeleteAnswerHandler)
+	r.Put("/answer/:id", h.EditAnswerHandler)
+	r.Post("/quiz-answer", h.AddQuizAnswerHandler)
+
+	// quiz
+	r.Get("/quiz", h.ListQuizHandler)
+
+	// admin
+	r.Get("/admin-question", h.ListQuestionAdminHandler)
 }
 
 func (h *QuestionHandler) AddQuestionHandler(c *fiber.Ctx) error {
@@ -66,6 +76,24 @@ func (h *QuestionHandler) ListQuestionsHandler(c *fiber.Ctx) error {
 	}
 
 	return response.SendSuccess(c, "questions retrieved successfully", questions)
+}
+
+func (h *QuestionHandler) DetailQuestionsHandler(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil || id <= 0 {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid question ID", nil)
+	}
+
+	question, err := h.questionService.DetailQuestion(int32(id))
+	if err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "question retrieved successfully", question)
 }
 
 func (h *QuestionHandler) DeleteQuestionHandler(c *fiber.Ctx) error {
@@ -206,4 +234,30 @@ func (h *QuestionHandler) EditQuestionHandler(c *fiber.Ctx) error {
 	}
 
 	return response.SendSuccess(c, "question updated successfully", nil)
+}
+
+func (h *QuestionHandler) EditAnswerHandler(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil || id <= 0 {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid answer ID", nil)
+	}
+
+	var answer entity.EditAnswer
+	if err := c.BodyParser(&answer); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "invalid request body", nil)
+	}
+
+	if err := h.val.Struct(answer); err != nil {
+		return response.SendError(c, fiber.StatusBadRequest, "Validation failed", err.Error())
+	}
+
+	if err := h.questionService.EditQuizAnswer(int32(id), answer); err != nil {
+		appErr, ok := err.(*app.AppError)
+		if !ok {
+			appErr = app.ErrInternal
+		}
+		return response.SendError(c, appErr.Code, appErr.Message, nil)
+	}
+
+	return response.SendSuccess(c, "answer updated successfully", nil)
 }

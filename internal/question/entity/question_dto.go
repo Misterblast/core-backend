@@ -24,6 +24,14 @@ type ListQuestionExample struct {
 	SetID   int32  `json:"set_id"`
 }
 
+type DetailQuestionExample struct {
+	ID      int32  `json:"id"`
+	Number  int    `json:"number"`
+	Type    string `json:"type"`
+	Content string `json:"content"`
+	SetID   int32  `json:"set_id"`
+}
+
 type ListQuestionQuiz struct {
 	ID      int32        `json:"id"`
 	Number  int          `json:"number"`
