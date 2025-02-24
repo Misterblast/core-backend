@@ -13,6 +13,9 @@ test-class:
 test-lesson:
 	$(GO_CMD) test ./internal/lesson/... -v
 
+test-user:
+	$(GO_CMD) test ./internal/user/... -v
+
 test-set:
 	$(GO_CMD) test ./internal/set/... -v
 
